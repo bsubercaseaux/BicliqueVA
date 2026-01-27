@@ -1,0 +1,1 @@
+bva -method=BVA2 -file=$1  -print=1 -limit=-1 | grep -v -e UNK -e "r " > $2
