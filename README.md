@@ -58,7 +58,7 @@ and see results.
 
 ## Running Experiments
 
-```
+
 For a suite of experiments on random graphs (Erd\H{os}-Renyi), run
 ```
 uv run python3 -m bicliqueVA.experiments.scaling_random_graphs
