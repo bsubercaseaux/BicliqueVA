@@ -1,7 +1,9 @@
 # BicliqueVA
-Bounded Variable Addition based on Biclique decompositions
+Bounded Variable Addition based on Biclique partitions
 
 ## Installation
+
+Requirements for a full execution: `kissat` in its version 4.0.4, must be executable as `kissat` in your path. `bva`, from e.g., (https://fmv.jku.at/bva/) executable as `bva` in your path, and `sbva` (https://github.com/hgarrereyn/SBVA) executable as `sbva` in your path.
 
 ### Automatic Installation
 
@@ -31,12 +33,31 @@ If you prefer to install manually:
    uv tool install . --force
    ```
 
+### Development (Editable) Installation
+
+If you are developing BicliqueVA and want the `biva` command to automatically reflect changes in the source code, run:
+
+```bash
+bash install.sh --editable
+```
+
+Or manually:
+```bash
+uv tool install --editable . --force
+```
+
+This installs the package in "editable" mode, linking the global `biva` command directly to your repository folder.
+
+After this, you should be able to run e.g.,
+
+```bash
+biva -f myformula.cnf
+```
+and see results.
+
 
 ## Running Experiments
 
-For a single basic experiment, run
-```
-uv run python3 -m bicliqueVA.experiments.basic
 ```
 For a suite of experiments on random graphs (Erd\H{os}-Renyi), run
 ```
