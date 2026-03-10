@@ -17,15 +17,24 @@ import time
 
 def biclique_partition(graph: Graph, forced_r: Optional[int] = None, delta_r = 0):
     n = graph.n_vertices()
-
     lg = lambda x: math.log2(x) if x > 0 else 0.0
-    # print(f"lg(n) = {lg(n)}, lg lg n = {lg(lg(n))}")
-    r = max(1, int(math.floor(lg(n) - 1.1 * lg(lg(n)))))    # guard for tiny n
-    # print(f"lg(n) - 1.1 lg(lg(n)) = {lg(n) - 1.1 * lg(lg(n))}")
+    
     if forced_r is not None:
         r = forced_r
     else:
+        # Match C++ empirical cost estimation logic
+        r = 2
+        best_est = 1e18
+        for i in range(3, 16):
+            estS = n * (1 << (i - 1))
+            estA = n * (n // (2 * i))
+            est = estS + estA
+            if est < best_est:
+                best_est = est
+                r = i
         r += delta_r
+    
+    r = max(1, r)
     # print(f"Using r = {r} for n = {n}")
 
     # 2–3: R(i, j)

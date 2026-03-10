@@ -18,11 +18,8 @@ def form2graph(formula_filename):
                     u = abs(int(tokens[0]))
                     v = abs(int(tokens[1]))
                     edges.append((u, v))
-    vertices = set()
-    for u, v in edges:
-        vertices.add(u)
-        vertices.add(v)
-    g = Graph(vertices=list(vertices))
+    vertices = list(range(1, n_vars + 1))
+    g = Graph(vertices=vertices)
     for u, v in edges:
         g.add_edge(u, v)
     return g

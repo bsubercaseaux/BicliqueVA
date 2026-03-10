@@ -34,29 +34,175 @@ def pre_formula(input_formula_filename):
                     enc.add_clause(clause)
     return enc
 
-def depth_reencode(input_formula_filename):
+
+def _estimate_default_r(n):
+    best_r = 3
+    best_est = 1e18
+    for r in range(3, min(12, n) + 1):
+        est_s = n * (1 << (r - 1))
+        est_a = n * math.ceil(n / (2 * r))
+        est = est_s + est_a
+        if est < best_est:
+            best_est = est
+            best_r = r
+    return best_r
+
+
+def _partition_vertices(vertices, block_size):
+    n = len(vertices)
+    num_blocks = math.ceil(n / block_size)
+    blocks = []
+    vertex_to_block = {}
+    for i in range(1, num_blocks + 1):
+        lo = (i - 1) * block_size
+        hi = min(i * block_size, n)
+        block = vertices[lo:hi]
+        blocks.append(block)
+        for v in block:
+            vertex_to_block[v] = i - 1
+    return blocks, vertex_to_block
+
+
+def _collect_depth_groups(graph, r):
+    vertices = graph.vertices
+    n = graph.n_vertices()
+    if n == 0:
+        return 0, []
+
+    parts, vertex_to_part = _partition_vertices(vertices, r)
+    num_parts = len(parts)
+    is_edge = graph.is_edge
+
+    def R(i, j):
+        dij = min(abs(i - j), num_parts - abs(i - j))
+        return (i < j and dij % 2 == 0) or (i > j and dij % 2 == 1)
+
+    within_part_clauses = 0
+    for part in parts:
+        for (u, v) in itertools.combinations(part, 2):
+            if is_edge(u, v):
+                within_part_clauses += 1
+
+    groups_data = []
+
+    for i, part_i in enumerate(parts):
+        groups = {}
+        for v in vertices:
+            j = vertex_to_part[v]
+            if R(j, i):
+                mask = 0
+                for idx, u in enumerate(part_i):
+                    if is_edge(u, v):
+                        mask |= (1 << idx)
+                if mask != 0:
+                    if mask not in groups:
+                        groups[mask] = set()
+                    groups[mask].add(v)
+
+        for mask, right_set in groups.items():
+            s_size = mask.bit_count()
+            if s_size > 0 and len(right_set) > 0:
+                groups_data.append((s_size, tuple(sorted(right_set))))
+
+    return within_part_clauses, groups_data
+
+
+def _estimate_depth_clause_count_from_groups(vertices, within_part_clauses, groups_data, p):
+    _, vertex_to_block = _partition_vertices(vertices, p)
+
+    s_weight = 0
+    a_weight = 0
+    direct_clauses = 0
+    used_z_pairs = set()
+
+    for s_size, right_tuple in groups_data:
+        a_size = len(right_tuple)
+        if s_size + a_size >= s_size * a_size:
+            direct_clauses += s_size * a_size
+            continue
+
+        s_weight += s_size
+        right_by_block = {}
+        for v in right_tuple:
+            b_v = vertex_to_block[v]
+            if b_v not in right_by_block:
+                right_by_block[b_v] = []
+            right_by_block[b_v].append(v)
+
+        for u_list in right_by_block.values():
+            k = len(u_list)
+            a_weight += (k // 2) + (k % 2)
+            for t in range(k // 2):
+                used_z_pairs.add((u_list[2 * t], u_list[2 * t + 1]))
+
+    b_clauses = 2 * len(used_z_pairs)
+    return within_part_clauses + s_weight + a_weight + direct_clauses + b_clauses
+
+
+def _adaptive_depth_parameters(graph):
+    n = graph.n_vertices()
+    if n <= 4:
+        return max(2, n), max(2, n)
+
+    lg = lambda x: math.log2(x) if x > 0 else 0.0
+    p_base = max(4, 2 * int(n // (lg(n) * lg(n))) + 10)
+    r_base = _estimate_default_r(n)
+
+    r_candidates = sorted({
+        max(2, r_base - 1),
+        max(2, r_base),
+        min(n, r_base + 1),
+    })
+
+    p_candidates = sorted({
+        max(4, p_base // 4),
+        max(4, p_base // 3),
+        max(4, p_base // 2),
+        max(4, p_base),
+        max(4, int(round(math.sqrt(n)))),
+        8,
+        12,
+    })
+    p_candidates = [p for p in p_candidates if p <= n]
+    if len(p_candidates) == 0:
+        p_candidates = [max(2, n)]
+
+    best_cost = None
+    best_r = r_base
+    best_p = p_base
+    vertices = graph.vertices
+    for r in r_candidates:
+        within_part_clauses, groups_data = _collect_depth_groups(graph, r=r)
+        for p in p_candidates:
+            est_cost = _estimate_depth_clause_count_from_groups(
+                vertices=vertices,
+                within_part_clauses=within_part_clauses,
+                groups_data=groups_data,
+                p=p,
+            )
+            if best_cost is None or est_cost < best_cost:
+                best_cost = est_cost
+                best_r = r
+                best_p = p
+
+    return best_r, best_p
+
+
+def depth_reencode(input_formula_filename, forced_r: Optional[int] = None, forced_p: Optional[int] = None):
     g = form2graph(input_formula_filename)
     enc = pre_formula(input_formula_filename)
     n = g.n_vertices()
     print(f"Number of clauses in original formula = {enc.n_clauses()}")
 
-    min_est = 1e9
-    min_pr = -1
-    for pr in range(3, 12):
-        est_S = n * (2**pr // 2)
-        est_A = n * math.ceil(n / (2*pr))
-        print(f"pr = {pr}, est_S = {est_S}, est_A = {est_A}, est_total = {est_S + est_A}")
-        if est_S + est_A < min_est:
-            min_est = est_S + est_A
-            min_pr = pr
-    
+    adaptive_r, adaptive_p = _adaptive_depth_parameters(g)
+    r = forced_r if forced_r is not None else adaptive_r
+    p = forced_p if forced_p is not None else adaptive_p
+    print(f"Adaptive depth parameters: r={adaptive_r}, p={adaptive_p}")
+    if forced_r is not None or forced_p is not None:
+        print(f"Using overridden depth parameters: r={r}, p={p}")
+
     vc = enc.n_vars()
 
-
-   
-
-    lg = lambda x: math.log2(x) if x > 0 else 0.0
-    p = 2*int(n // (lg(n)*lg(n))) + 10
     print(f"p = {p}")
     num_blocks = math.ceil(n / p)
     blocks = []
@@ -70,20 +216,11 @@ def depth_reencode(input_formula_filename):
             vertex_to_block[v] = i-1
 
     b_clauses = 0
+    # Track which z_{u,v} have actually been instantiated.
+    # This is equivalent to "create all, then delete unused", but cheaper.
     b_marked = {}
-
-    for block in blocks:
-        for (u, v) in itertools.combinations(block, 2):
-            enc.add_var(f"z_{u, v}")
-            b_marked[(u, v)] = False
-            enc.add_clause([-u, f"z_{u, v}"])
-            enc.add_clause([-v, f"z_{u, v}"])
-            b_clauses += 2  
     print(f"b_clauses = {b_clauses}")
 
-    # r = max(1, int(math.floor(lg(n) - 1.1 * lg(lg(n))))) -1
-    # r = min_pr 
-    r = 5
     print(f"depth using r = {r}")
    
     num_parts = math.ceil(n / r)
@@ -140,12 +277,12 @@ def depth_reencode(input_formula_filename):
         for mask, right_set in A.items():
             S = tuple(u for bit, u in enumerate(P_i) if (mask >> bit) & 1)
             if len(S) > 0 and len(right_set) > 0:
-                # if len(S) + len(right_set) >= len(S) * len(right_set):
-                #     for v in S:
-                #         for u in right_set:
-                #             enc.add_clause([-v, -u])
-                #             direct_clauses+=1
-                #     continue
+                if len(S) + len(right_set) >= len(S) * len(right_set):
+                    for v in S:
+                        for u in right_set:
+                            enc.add_clause([-v, -u])
+                            direct_clauses += 1
+                    continue
                 sum_right_sets += len(right_set)
                 n_right_sets += 1
                 enc.add_var(vc + 1)
@@ -184,13 +321,18 @@ def depth_reencode(input_formula_filename):
             for b_u, u_set in adj_per_block.items():
                 u_sorted = tuple(sorted(u_set))
                 for k in range(len(u_sorted)//2):
-                    # if (u_sorted[2*k], u_sorted[2*k+1]) not in b_marked:
-                        # enc.add_var(f"z_{u_sorted[2*k], u_sorted[2*k+1]}")
-                    enc.add_clause([-v, f"-z_{u_sorted[2*k], u_sorted[2*k+1]}"])
+                    pair = (u_sorted[2*k], u_sorted[2*k+1])
+                    if pair not in b_marked:
+                        z_name = f"z_{pair[0], pair[1]}"
+                        enc.add_var(z_name)
+                        enc.add_clause([-pair[0], z_name])
+                        enc.add_clause([-pair[1], z_name])
+                        b_clauses += 2
+                        b_marked[pair] = True
+                    enc.add_clause([-v, f"-z_{pair[0], pair[1]}"])
                     # enc.add_clause([-v, f"-z_{u_sorted[2*k], u_sorted[2*k+1]}"])
                     # b_clauses += 2
                     A_weight += 1
-                    b_marked[(u_sorted[2*k], u_sorted[2*k+1])] = True
                 if len(u_sorted) % 2 == 1:
                     enc.add_clause([-v, -u_sorted[-1]])
                     A_weight += 1
@@ -221,7 +363,8 @@ def depth_reencode(input_formula_filename):
                 # print(f"Reencoded {originally} clauses into {reencoded}")
               
         # print(f"used right = {len(used_right)}")
-    print(f"Average right set size = {sum_right_sets / n_right_sets}")
+    avg_right_size = (sum_right_sets / n_right_sets) if n_right_sets > 0 else 0.0
+    print(f"Average right set size = {avg_right_size}")
     print(f"Within part clauses = {within_part_clauses}")
     print(f"Number of b_clauses = {b_clauses}")
     print(f"Number of direct clauses = {direct_clauses}")
@@ -233,9 +376,19 @@ def depth_reencode(input_formula_filename):
     return enc
 
 
-def run_depth_reencode(input_formula_filename, timeout=None, output_formula_filename='tmp/depth_reencoded.cnf'):
+def run_depth_reencode(
+    input_formula_filename,
+    timeout=None,
+    output_formula_filename='tmp/depth_reencoded.cnf',
+    forced_r: Optional[int] = None,
+    forced_p: Optional[int] = None,
+):
     start = time.perf_counter_ns()
-    encoding = depth_reencode(input_formula_filename=input_formula_filename)
+    encoding = depth_reencode(
+        input_formula_filename=input_formula_filename,
+        forced_r=forced_r,
+        forced_p=forced_p,
+    )
     end = time.perf_counter_ns()
     encoding.serialize(output_formula_filename)
     vars = encoding.n_vars()

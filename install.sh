@@ -42,8 +42,14 @@ cd - > /dev/null
 echo -e "\n[2/3] Syncing dependencies..."
 uv sync
 
+EDITABLE=""
+if [[ "$1" == "--editable" ]]; then
+    EDITABLE="--editable"
+    echo "Installing in EDITABLE mode..."
+fi
+
 echo -e "\n[3/3] Installing 'biva' command..."
-uv tool install . --force
+uv tool install $EDITABLE . --force
 
 echo "========================================"
 echo "    Installation Complete!"

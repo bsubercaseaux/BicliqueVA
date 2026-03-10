@@ -27,7 +27,7 @@ public:
 
 private:
   int vertices;
-  int edges;
+  int edges = 0;
   vector<vector<int>> adjList;
   vector<uint8_t> adjMatrix; // Flattened 1D array: row * vertices + col
 };

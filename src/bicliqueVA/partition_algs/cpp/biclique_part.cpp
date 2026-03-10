@@ -16,8 +16,8 @@ int main(int argc, char *argv[]) {
   }
   string filename = argv[1];
   Graph G = fromCNF(filename);
-  cout << "Read graph with " << G.getNumVertices() << " vertices and "
-       << G.getNumEdges() << " edges." << endl;
+  // cout << "Read graph with " << G.getNumVertices() << " vertices and "
+  //      << G.getNumEdges() << " edges." << endl;
 
   // vector<Biclique> partition = G.getDensityAwareBicliquePartition();
   vector<Biclique> partition = G.getBicliquePartition();
@@ -29,8 +29,8 @@ int main(int argc, char *argv[]) {
     total_weight += min(l + r, l * r);
   }
 
-  cout << "Total bicliques: " << partition.size()
-       << ", total weight: " << total_weight << endl;
+  // cout << "Total bicliques: " << partition.size()
+  //      << ", total weight: " << total_weight << endl;
 
   if (argc == 3) {
     string out_filename = argv[2];
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
       }
       outfile << endl;
     }
-    cout << "Partition written to " << out_filename << endl;
+    // cout << "Partition written to " << out_filename << endl;
   }
 
   return 0;

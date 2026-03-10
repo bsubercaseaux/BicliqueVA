@@ -157,11 +157,11 @@ void transformCNF(const string &original_cnf, const vector<Biclique> &partition,
   }
   fclose(cnf_out);
 
-  cout << "Transformed CNF written to " << output_cnf << endl;
-  cout << "Original vars: " << num_vars << ", New vars: " << (next_var - 1)
-       << endl;
-  cout << "Original clauses (kept): " << other_clauses_count
-       << ", New clauses: " << new_clauses_count << endl;
+  // cout << "Transformed CNF written to " << output_cnf << endl;
+  // cout << "Original vars: " << num_vars << ", New vars: " << (next_var - 1)
+  //      << endl;
+  // cout << "Original clauses (kept): " << other_clauses_count
+  //      << ", New clauses: " << new_clauses_count << endl;
 }
 
 #ifndef BICLIQUE_PARTITIONS_NO_MAIN

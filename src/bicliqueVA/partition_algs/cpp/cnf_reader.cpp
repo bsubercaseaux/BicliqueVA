@@ -43,6 +43,8 @@ Graph fromCNF(string filename) {
   vector<int> current_clause_literals;
   current_clause_literals.reserve(10); // Reserve some space
 
+  // cout << "# edges: " << G.getNumEdges() << endl;
+
   while (fscanf(file, "%d", &literal) == 1) {
     if (literal == 0) {
       // End of clause
@@ -67,7 +69,9 @@ Graph fromCNF(string filename) {
           // Skip self-loops
         } else {
           // Ensure u < v for addEdge, as per Graph::addEdge assertion
+          // cout << "adding edge " << u_graph << " " << v_graph << endl;
           G.addEdge(std::min(u_graph, v_graph), std::max(u_graph, v_graph));
+          // cout << "# edges: " << G.getNumEdges() << endl;
         }
       }
       current_clause_literals.clear();

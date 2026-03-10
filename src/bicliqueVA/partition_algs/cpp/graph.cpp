@@ -139,14 +139,14 @@ vector<Biclique> Graph::getBicliquePartition(int num_threads) {
     int estS = n * (1 << (i - 1));
     int estA = n * (n / (2 * i));
     int est = estS + estA;
-    cout << "i = " << i << ", est = " << est << endl;
+    // cout << "i = " << i << ", est = " << est << endl;
     if (est < best_est) {
       best_est = est;
       M = i;
     }
   }
 
-  cout << "Using M = " << M << " for n = " << n << endl;
+  // cout << "Using M = " << M << " for n = " << n << endl;
 
   // Partition V into r parts of size at most M: P0, P1, ..., P_{r-1}
   int r = (n + M - 1) / M;

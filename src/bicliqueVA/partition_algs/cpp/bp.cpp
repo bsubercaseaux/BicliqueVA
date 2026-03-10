@@ -24,14 +24,19 @@ int main(int argc, char *argv[]) {
     num_threads = atoi(argv[3]);
   }
 
+  int VERBOSITY = 0;
+
   // 1. Read Graph from CNF
   Graph G = fromCNF(input_cnf);
   if (G.getNumVertices() == 0) {
     cerr << "Error reading CNF or empty graph." << endl;
     return 1;
   }
-  cout << "Read graph with " << G.getNumVertices() << " vertices and "
-       << G.getNumEdges() << " edges." << endl;
+
+  if (VERBOSITY > 0) {
+    cout << "Read graph with " << G.getNumVertices() << " vertices and "
+        << G.getNumEdges() << " edges." << endl;
+  }
 
   // 2. Compute Biclique Partition
   vector<Biclique> partition = G.getBicliquePartition(num_threads);
@@ -45,8 +50,8 @@ int main(int argc, char *argv[]) {
       // cout << "saved" << (l * r) - (l + r) << endl;
     }
   }
-  cout << "Computed partition with " << partition.size()
-       << " bicliques, total weight: " << total_weight << endl;
+  // cout << "Computed partition with " << partition.size()
+  //      << " bicliques, total weight: " << total_weight << endl;
 
   // 3. Transform to new CNF
   transformCNF(input_cnf, partition, output_cnf);
